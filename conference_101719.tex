@@ -1,0 +1,141 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{Deep Learning for Predicting Chronic Wasting Disease Spread in U.S. Deer Populations}
+
+\author{
+\IEEEauthorblockN{Alexander Owens}
+\IEEEauthorblockA{\textit{School of Data Science} \\
+\textit{University of Virginia}\\
+Charlottesville, VA, USA\\
+nep6zu@virginia.edu}
+\and
+\IEEEauthorblockN{Samuel Delaney}
+\IEEEauthorblockA{\textit{School of Data Science} \\
+\textit{University of Virginia}\\
+Charlottesville, VA, USA\\
+sed4kq@virginia.edu}
+\and
+\IEEEauthorblockN{Tyler Kellog}
+\IEEEauthorblockA{\textit{School of Data Science} \\
+\textit{University of Virginia}\\
+Charlottesville, VA, USA\\
+yaz8bp@virginia.edu}
+}
+
+\maketitle
+
+\makeatletter
+\renewenvironment{abstract}{%
+  \if@twocolumn
+    \section*{\abstractname}%
+  \else
+    \begin{center}\normalfont\bfseries \abstractname\end{center}%
+  \fi
+  \quotation
+}{\endquotation}
+
+\renewcommand\IEEEkeywordsname{Index Terms}
+\renewenvironment{IEEEkeywords}{%
+  \section*{\IEEEkeywordsname}\normalfont\normalsize
+}{}
+\makeatother
+
+
+\begin{abstract}
+Chronic Wasting Disease (CWD) is a fatal neurological illness affecting cervids across North America. Anticipating where new detections may occur can help agencies target surveillance and mitigation. We propose a practical, reproducible workflow that uses a small multilayer perceptron (MLP) to estimate next year county level risk from publicly available U.S. Geological Survey (USGS) data plus a compact set of environmental features. Our plan follows methods from the \textit{Dive into Deep Learning} textbook and is designed to run on UVA’s Rivanna HPC using CPU or a single GPU. We specify dataset sources, feature engineering, preprocessing, model design, baselines, evaluation, robustness checks, limitations, ethics, a compute plan, and a short project timeline. The outcome is a transparent baseline and code repository appropriate for later course milestones.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Chronic Wasting Disease, neural networks, supervised learning, wildlife epidemiology, USGS
+\end{IEEEkeywords}
+
+\section{Introduction and Motivation}
+CWD is a progressive, fatal disease of deer, elk, and moose with confirmed detections now reported across much of the United States \cite{usgs2025}. Because infected animals may appear healthy for long periods and prions can persist in soils, management is challenging and expensive. Agencies collect detailed county level surveillance data, yet these data are primarily descriptive and retrospective. We ask a course level question: \textit{given past detections and simple environmental context, can a small neural network flag counties that are more likely to report a new detection next year?}
+
+Our objectives are intentionally modest and actionable: (1) build a clean, reproducible pipeline aligned with \textit{D2L.ai} for tabular supervised learning, (2) compare against fair baselines such as logistic regression and random forest, (3) communicate results with risk maps and simple importance checks, and (4) document limitations so wildlife managers and classmates interpret results appropriately. We avoid advanced architectures not covered in class and keep the compute footprint predictable on Rivanna.
+
+\subsection*{Research Questions}
+\begin{itemize}
+\item RQ1: Do county level environmental and historical features support useful next year CWD risk prediction?
+\item RQ2: Does a basic MLP outperform logistic regression and random forest on F1 and ROC AUC metrics?
+\item RQ3: Which inputs contribute most to predictions based on permutation importance and threshold sensitivity?
+\end{itemize}
+
+\section{Dataset Description}
+We use the following public sources: (i) USGS CWD Distribution (ver. 3.0, June 2025) providing county level detections by year, state, and species \cite{usgs_data}, (ii) USGS NWHC overview and ScienceBase metadata including documentation, definitions, and spatial mapping references \cite{usgs2025,sciencebase_item}, and (iii) context features compiled from public nationwide datasets such as land cover proportions, annual mean temperature, elevation, deer density proxies, and human population density as a sampling effort proxy.
+
+\subsection*{Target and Instances}
+Each instance represents a county year pair indicating whether at least one new detection is reported in the following year. Training uses years up to 2022, validation uses 2023, and the latest available year is held out for testing. This forward in time split mirrors a real world application.
+
+\section{Feature Engineering and Preprocessing}
+\textbf{County identity}: normalize FIPS codes and resolve merged or renamed counties.  
+\textbf{Historical signal}: binary flags and rolling counts for prior detections within the county and its neighbors. Neighbor features use queen contiguity adjacency and are computed using only information available at time $t$ to prevent leakage.  
+\textbf{Environmental context}: land cover fractions such as forest, grass, and crop, annual temperature, and elevation.  
+\textbf{Population context}: coarse deer density proxy and human population density.  
+\textbf{Cleaning and scaling}: continuous features standardized to zero mean and unit variance; categorical features one hot encoded if necessary. Missing environmental values imputed using state level medians.  
+\textbf{Imbalance handling}: positives are rare, so we compare class weights, oversampling within mini batches, and threshold tuning on validation F1. All steps are scripted for reproducibility.
+
+\section{Literature Review}
+CWD risk mapping has traditionally relied on regression, occupancy, and GIS overlays to describe patterns of spread. Environmental persistence of prions in soil is well documented, including transport across soil types \cite{kuznetsova2023soil,kuznetsova2024soils}. Recent work applied machine learning to county level CWD prediction with cross year validation \cite{ahmed2024county}, showing that such methods can complement mechanistic models. Similar strategies in avian influenza modeling demonstrate that neural networks and ensemble models can identify nonlinear spatial and climatic relationships \cite{kieran2024hpaiv}. 
+
+Our contribution is not architectural novelty but methodological clarity. Following \textit{Dive into Deep Learning}, we emphasize transparent preprocessing, simple architectures, regularization, and evaluation discipline \cite{d2l}. This creates a reproducible baseline that later teams can extend, for example by adding time windowed features or refined adjacency weights, while staying within course scope.
+
+\section{Proposed Methodology}
+\subsection{Model Design}
+We train the model using an adaptive optimization method that adjusts learning rates during training to help the model converge faster and more smoothly than standard gradient descent. The network predicts a single probability value between 0 and 1 for each county, using a final activation function that squashes outputs into this range. We monitor accuracy and F1 score on a validation set to avoid overfitting. Training is lightweight and can be completed on Rivanna using a single GPU or even the CPU partition.
+
+\subsection{Baselines and Ablations}
+Baselines include logistic regression with L2 regularization and random forest with tuned depth and number of trees.  
+Ablation studies remove neighbor features, environmental features, and vary dropout rates between 0.0 and 0.4 to gauge stability.
+
+\subsection{Evaluation}
+Metrics include accuracy, precision, recall, F1, ROC AUC, and PR AUC. Thresholds are tuned on validation F1 and fixed for test evaluation. We generate calibration curves, confusion matrices, and county level risk maps. For interpretability, we use permutation importance for the MLP and SHAP values for the random forest baseline.
+
+\section{Robustness and Error Analysis}
+Temporal robustness is tested by shifting train validation splits to assess consistency. Geographic robustness uses leave one state out tests to check transferability. Sensitivity analysis perturbs key variables such as deer density to verify smooth model responses. We review false positives and negatives to identify counties misclassified by the model and discuss implications for surveillance prioritization.
+
+\section{Limitations and Assumptions}
+Surveillance bias arises because detections depend on effort and accessibility, so human population density only partly proxies sampling. Spatial leakage is mitigated by using lagged neighbor information. The model predicts binary occurrence rather than prevalence, and coarse environmental proxies limit precision. Nevertheless, the design remains appropriate for a baseline analysis.
+
+\section{Reproducibility and Deliverables}
+We fix random seeds, save splits, log experiments in TensorBoard, and include a configuration file listing hyperparameters. A shell script reproduces the full workflow from raw CSVs to evaluation metrics. Outputs include tables, calibration curves, feature importance, and simple risk maps.
+
+\section*{Compute Plan}
+Preprocessing and baselines will run on GPU nodes. The MLP will train on the Rivanna GPU partition with wall time under 3 hours and memory use below 40 GB. Each run outputs model weights and logs to a timestamped directory.
+
+\section*{Timeline}
+Week 1: finalize feature list and joins.  
+Week 2: build baselines and address imbalance.  
+Week 3: train MLP and tune hyperparameters.  
+Week 4: conduct robustness checks and finalize report.
+
+\section*{Ethics and Communication}
+All data are public and non sensitive. Predictions are decision support tools, not policy directives. We clearly label model uncertainty and emphasize that results indicate potential risk, not confirmed spread.
+
+\section*{Expected Outcomes}
+We expect the MLP to match or exceed logistic regression in recall and F1, while ranking higher risk counties more effectively. The project will produce a reproducible public baseline and interpretable visualizations that can guide further research.
+
+\section{}
+\begin{thebibliography}{00}
+\bibitem{usgs2025} U.S. Geological Survey National Wildlife Health Center, ``Expanding Distribution of Chronic Wasting Disease,'' 2025. [Online]. Available: \url{https://www.usgs.gov/centers/nwhc/science/expanding-distribution-chronic-wasting-disease}
+\bibitem{usgs_data} U.S. Geological Survey, ``Chronic Wasting Disease Distribution, United States, State and County (ver. 3.0, June 2025),'' 2025. [Online]. Available: \url{https://www.usgs.gov/data/chronic-wasting-disease-distribution-united-states-state-and-county-ver-30-june-2025}
+\bibitem{sciencebase_item} U.S. Geological Survey ScienceBase Catalog, ``Chronic Wasting Disease Distribution Metadata Item,'' 2016. [Online]. Available: \url{https://www.sciencebase.gov/catalog/item/58068050e4b0824b2d1d415d}
+\bibitem{d2l} A. Zhang, Z. C. Lipton, M. Li, and A. J. Smola, \textit{Dive into Deep Learning}, 2nd ed., 2023. [Online]. Available: \url{https://d2l.ai}
+\bibitem{ahmed2024county} M. S. Ahmed, R. B. Dorazio, and M. A. Miller, ``Predicting chronic wasting disease in white tailed deer at county scale using machine learning,'' \textit{Scientific Reports}, 2024. [Online]. Available: \url{https://www.nature.com/articles/s41598-024-65002-7}
+\bibitem{kuznetsova2023soil} A. Kuznetsova \textit{et al.}, ``Movement of chronic wasting disease prions in prairie, forest, and montane soils,'' \textit{mBio}, 2023. [Online]. Available: \url{https://pmc.ncbi.nlm.nih.gov/articles/PMC9965917/}
+\bibitem{kuznetsova2024soils} A. Kuznetsova \textit{et al.}, ``Detection of CWD prions in prairie soils,'' \textit{Environmental Science \& Technology}, 2024. [Online]. Available: \url{https://pubs.acs.org/doi/10.1021/acs.est.4c04633}
+\bibitem{kieran2024hpaiv} T. J. Kieran \textit{et al.}, ``Machine learning approaches for influenza A virus risk,'' \textit{Communications Biology}, 2024. [Online]. Available: \url{https://www.nature.com/articles/s42003-024-06629-0}
+\end{thebibliography}
+
+\end{document}
