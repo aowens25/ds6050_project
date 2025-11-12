@@ -6,9 +6,16 @@
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
-\usepackage{url}
+\usepackage[hyphens]{url}
+\usepackage[breaklinks=true]{hyperref}
+\Urlmuskip=0mu plus 1mu
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\hypersetup{
+    colorlinks=true,
+    urlcolor=black
+}
 \begin{document}
 
 \title{Deep Learning for Predicting Chronic Wasting Disease Spread in U.S. Deer Populations}
@@ -26,14 +33,22 @@ nep6zu@virginia.edu}
 Charlottesville, VA, USA\\
 sed4kq@virginia.edu}
 \and
-\IEEEauthorblockN{Tyler Kellog}
+\IEEEauthorblockN{Tyler Kellogg}
 \IEEEauthorblockA{\textit{School of Data Science} \\
 \textit{University of Virginia}\\
 Charlottesville, VA, USA\\
-yaz8bp@virginia.edu}
+yaz8bp@virginia.edu\\[0.5em]
+}
 }
 
+
 \maketitle
+
+\vspace{-1em}
+\begin{center}
+\textit{Project Repository:} \href{https://github.com/aowens25/ds6050_project}{GitHub Repo}
+\end{center}
+\vspace{0.5em}
 
 \makeatletter
 \renewenvironment{abstract}{%
@@ -50,7 +65,6 @@ yaz8bp@virginia.edu}
   \section*{\IEEEkeywordsname}\normalfont\normalsize
 }{}
 \makeatother
-
 
 \begin{abstract}
 Chronic Wasting Disease (CWD) is a fatal neurological illness affecting cervids across North America. Anticipating where new detections may occur can help agencies target surveillance and mitigation. We propose a practical, reproducible workflow that uses a small multilayer perceptron (MLP) to estimate next year county level risk from publicly available U.S. Geological Survey (USGS) data plus a compact set of environmental features. Our plan follows methods from the \textit{Dive into Deep Learning} textbook and is designed to run on UVA’s Rivanna HPC using CPU or a single GPU. We specify dataset sources, feature engineering, preprocessing, model design, baselines, evaluation, robustness checks, limitations, ethics, a compute plan, and a short project timeline. The outcome is a transparent baseline and code repository appropriate for later course milestones.
@@ -105,6 +119,29 @@ Metrics include accuracy, precision, recall, F1, ROC AUC, and PR AUC. Thresholds
 \section{Robustness and Error Analysis}
 Temporal robustness is tested by shifting train validation splits to assess consistency. Geographic robustness uses leave one state out tests to check transferability. Sensitivity analysis perturbs key variables such as deer density to verify smooth model responses. We review false positives and negatives to identify counties misclassified by the model and discuss implications for surveillance prioritization.
 
+\section{Results and Discussion}
+We trained and evaluated a logistic regression baseline using features from year $t$ to predict CWD detections in year $t\!+\!1$. 
+The model achieved strong forward validation performance (PR-AUC = 0.81, Recall = 0.91) and reproduced the expected class imbalance behavior where precision decreases as recall increases. 
+Training and validation curves showed stable convergence without overfitting.
+
+\subsection{Error Analysis}
+Confusion matrices at F1-optimal and prevalence-matched thresholds revealed the expected trade-off between false positives and missed outbreaks. 
+At the stricter F1 threshold, false positives dropped substantially while recall remained above 0.90, supporting use of a precision-focused surveillance list. 
+False negatives were concentrated in sparsely tested regions, aligning with limited sampling effort rather than systematic model error.
+
+\subsection{Ablation Study}
+We conducted targeted ablations to quantify feature group contributions using the same validation protocol. 
+Removing the spatial neighbor signal reduced PR-AUC from 0.81 to 0.73 and halved precision, confirming spatial autocorrelation as the dominant driver of predictive power. 
+Eliminating policy variables slightly reduced PR-AUC to 0.80, indicating that management regulations provide auxiliary benefit. 
+
+Environmental features had minimal effect (PR-AUC $\approx$ 0.80), suggesting climatic and landscape factors influence persistence but not short-term spread. 
+Overall, these results validate the baseline architecture and highlight that incorporating spatial structure materially improves predictive ranking of high-risk counties.
+
+\subsection{Next Steps}
+Future work will extend these experiments with a small multilayer perceptron (MLP) trained on the same engineered feature set to test whether nonlinear interactions yield measurable gains in recall and F1. 
+All scripts, dataset links, and outputs are reproducible on UVA’s Rivanna cluster.
+
+
 \section{Limitations and Assumptions}
 Surveillance bias arises because detections depend on effort and accessibility, so human population density only partly proxies sampling. Spatial leakage is mitigated by using lagged neighbor information. The model predicts binary occurrence rather than prevalence, and coarse environmental proxies limit precision. Nevertheless, the design remains appropriate for a baseline analysis.
 
@@ -137,5 +174,40 @@ We expect the MLP to match or exceed logistic regression in recall and F1, while
 \bibitem{kuznetsova2024soils} A. Kuznetsova \textit{et al.}, ``Detection of CWD prions in prairie soils,'' \textit{Environmental Science \& Technology}, 2024. [Online]. Available: \url{https://pubs.acs.org/doi/10.1021/acs.est.4c04633}
 \bibitem{kieran2024hpaiv} T. J. Kieran \textit{et al.}, ``Machine learning approaches for influenza A virus risk,'' \textit{Communications Biology}, 2024. [Online]. Available: \url{https://www.nature.com/articles/s42003-024-06629-0}
 \end{thebibliography}
+
+\clearpage          % force all previous floats to finish
+\newpage            % start appendix on a new page
+\appendices
+\section{Supplementary Figures}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.47\textwidth]{confusion_matrix.png}
+\caption{Confusion matrices at (left) F1-optimal threshold and (right) prevalence-matched threshold. True negatives dominate due to class imbalance, while most positives are recovered under the F1 threshold.}
+\label{appendix_confusion}
+\end{figure}
+
+\vspace{0.5em}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.47\textwidth]{validation_curve.png}
+\caption{Training and validation loss curves for the logistic regression baseline. The model converges smoothly with no overfitting, indicating stable optimization and appropriate regularization.}
+\label{appendix_valcurve}
+\end{figure}
+
+\vspace{0.5em}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.47\textwidth]{validation_probabilities.png}
+\caption{Predicted probability distribution for validation data. Positive cases cluster toward higher predicted probabilities, demonstrating useful separation between classes.}
+\label{appendix_valprob}
+\end{figure}
+
+
+\twocolumn
+
+
 
 \end{document}
