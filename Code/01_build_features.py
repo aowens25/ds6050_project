@@ -1,4 +1,4 @@
-DATA_PATH = "NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
+DATA_PATH = "data/NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
 
 def load_data(path=DATA_PATH):
     df = pd.read_csv(path)
