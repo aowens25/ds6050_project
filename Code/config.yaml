@@ -1,7 +1,7 @@
 seed: 42
 
 data:
-  path: "NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
+  path: "../Data/NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
   target_column: "Management_area_positive"
 
 split:
