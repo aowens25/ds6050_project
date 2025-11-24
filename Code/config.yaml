@@ -1,0 +1,39 @@
+seed: 42
+
+data:
+  path: "NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
+  target_column: "Management_area_positive"
+
+split:
+  train_frac: 0.6
+  val_frac: 0.2
+  test_frac: 0.2
+  strategy: "time_ordered"   # do not shuffle, respect time ordering
+
+logreg:
+  penalty: "l2"
+  solver: "liblinear"
+  use_variance_threshold: true
+  variance_threshold: 0.0
+
+random_forest:
+  n_estimators: 500
+  max_depth: null        # None = fully grown trees
+  min_samples_leaf: 1
+  n_jobs: -1
+  class_weight: "balanced"
+  random_state: 42
+
+mlp:
+  hidden_sizes: [64, 32]
+  dropout: 0.2
+  batch_size: 256
+  learning_rate: 0.0001
+  max_epochs: 150
+  patience: 10
+  max_grad_norm: 5.0
+  device: "cuda"          # falls back to cpu in code if cuda not available
+
+evaluation:
+  metrics: ["pr_auc", "roc_auc", "precision", "recall", "f1"]
+  threshold_selection: "f1_on_validation"
