@@ -1,4 +1,4 @@
-DATA_PATH = "../data/NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
+DATA_PATH = "NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
 
 def load_data(path=DATA_PATH):
     df = pd.read_csv(path)
@@ -34,9 +34,9 @@ def prepare_features(df):
     year_str = df["Season_year"].astype(str).str[:4]
     year_num = pd.to_numeric(year_str, errors="coerce")
 
-    train_df = df[year_num <= 2020]
-    val_df = df[year_num == 2021]
-    test_df = df[year_num >= 2022]
+    train_df = df[year_num <= 2019]
+    val_df = df[year_num == 2020]
+    test_df = df[year_num >= 2021]
 
     print("Data Split Summary")
     for name, subset in [("Train", train_df), ("Val", val_df), ("Test", test_df)]:
