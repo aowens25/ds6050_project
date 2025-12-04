@@ -1,20 +1,16 @@
-DATA_PATH = "NA_wildlife_agency_CWD_surveillance_data_2000_2022_v2.csv"
+import pandas as pd
+import numpy as np
+from pathlib import Path
 
-def load_data(path=DATA_PATH):
-    df = pd.read_csv(path)
-    df = df.sort_values(by="Season_year").reset_index(drop=True)
-    return df
+def load_data(path):
+    full_path = Path(__file__).resolve().parent.parent / path
+    return pd.read_csv(full_path)
 
 def prepare_features(df):
-    df["positivity_rate"] = df["Tests_positive"] / (
-        df["Tests_positive"] + df["Tests_negative"]
-    )
+    df["positivity_rate"] = df["Tests_positive"] / (df["Tests_positive"] + df["Tests_negative"])
     df["harvest_per_km2"] = (df["Total_harvest"] / df["Area"]).replace([np.inf, -np.inf], 0)
-    df["tests_per_km2"] = (
-        (df["Tests_positive"] + df["Tests_negative"]) / df["Area"]
-    ).replace([np.inf, -np.inf], 0)
+    df["tests_per_km2"] = ((df["Tests_positive"] + df["Tests_negative"]) / df["Area"]).replace([np.inf, -np.inf], 0)
     df = df.fillna(0)
-
     y = df["Management_area_positive"].astype(int)
 
     drop_cols = [
@@ -27,6 +23,7 @@ def prepare_features(df):
         "Area",
         "Management_area_positive",
     ]
+
     df_numeric = df.drop(columns=[c for c in drop_cols if c in df.columns])
     df_numeric = df_numeric.select_dtypes(include=["number"]).copy()
     X = df_numeric
@@ -45,6 +42,3 @@ def prepare_features(df):
     print("Done")
 
     return X, y, train_df, val_df, test_df
-
-df = load_data()
-X, y, train_df, val_df, test_df = prepare_features(df)

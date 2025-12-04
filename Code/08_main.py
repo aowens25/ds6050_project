@@ -1,78 +1,85 @@
 import yaml
-from pathlib import Path
+import importlib
 import torch
+from pathlib import Path
 
-# Import your module functions (each script already has its own imports)
-from build_features import load_data, prepare_features
-from train_logreg import train_logreg, predict_logreg
-from train_rf import train_rf, predict_rf
-from train_mlp import train_mlp
-from eval_models import summarize_model
-from ablations import run_rf_ablation
-from utils import set_global_seed
-import visuals
+build_features = importlib.import_module("01_build_features")
+train_logreg = importlib.import_module("02_train_logreg")
+train_rf = importlib.import_module("03_train_rf")
+train_mlp = importlib.import_module("04_train_mlp")
+eval_models = importlib.import_module("05_eval_models")
+ablations = importlib.import_module("06_ablations")
+utils = importlib.import_module("07_utils")
+visuals = importlib.import_module("09_visuals")
 
-def load_config(config_path="config.yaml"):
-    with open(config_path, "r") as f:
-        return yaml.safe_load(f)
+def load_config(path="config.yaml"):
+    root = Path(__file__).resolve().parent.parent
+    return yaml.safe_load(open(root / path, "r"))
 
 def main():
-    set_global_seed(42)
+    utils.set_global_seed(42)
 
-    # 1. Load config + data
     cfg = load_config()
-    df = load_data(cfg["data"]["path"])
-    X, y, train_df, val_df, test_df = prepare_features(df)
+    df = build_features.load_data(cfg["data"]["path"])
+    X, y, train_df, val_df, test_df = build_features.prepare_features(df)
 
-    # 2. Split data
     n = len(X)
-    train_end = int(n * 0.6)
-    val_end = int(n * 0.8)
-    X_train, X_val, X_test = X.iloc[:train_end], X.iloc[train_end:val_end], X.iloc[val_end:]
-    y_train, y_val, y_test = y.iloc[:train_end], y.iloc[train_end:val_end], y.iloc[val_end:]
+    a = int(n * 0.6)
+    b = int(n * 0.8)
 
-    # 3. Train models
-    print("\nTraining Logistic Regression...")
-    logreg_model, logreg_scaler, logreg_vt = train_logreg(X_train, y_train)
-    _, y_val_prob_lr = predict_logreg(logreg_model, logreg_scaler, logreg_vt, X_val)
-    _, y_test_prob_lr = predict_logreg(logreg_model, logreg_scaler, logreg_vt, X_test)
+    X_train = X.iloc[:a]
+    y_train = y.iloc[:a]
 
-    print("\nTraining Random Forest...")
-    rf_model = train_rf(X_train, y_train)
-    y_val_prob_rf = predict_rf(rf_model, X_val)
-    y_test_prob_rf = predict_rf(rf_model, X_test)
+    X_val = X.iloc[a:b]
+    y_val = y.iloc[a:b]
 
-    print("\nTraining MLP...")
-    mlp_model, mlp_scaler, mlp_thresh, y_test_prob_mlp, mlp_train_losses, mlp_val_losses = train_mlp(
+    X_test = X.iloc[b:]
+    y_test = y.iloc[b:]
+
+    lr_model, lr_scaler, lr_vt = train_logreg.train_logreg(X_train, y_train)
+    _, y_val_prob_lr = train_logreg.predict_logreg(lr_model, lr_scaler, lr_vt, X_val)
+    _, y_test_prob_lr = train_logreg.predict_logreg(lr_model, lr_scaler, lr_vt, X_test)
+
+    rf_model = train_rf.train_rf(X_train, y_train)
+    y_val_prob_rf = train_rf.predict_rf(rf_model, X_val)
+    y_test_prob_rf = train_rf.predict_rf(rf_model, X_test)
+
+    mlp_model, mlp_scaler, mlp_vt, y_test_prob_mlp, mlp_train_losses, mlp_val_losses = train_mlp.train_mlp(
         X_train, y_train, X_val, y_val, X_test, y_test
     )
 
-    # 4. Evaluate
-    print("\nEvaluating Models...")
-    models = {
-        "Logistic Regression": (y_val_prob_lr, y_test_prob_lr),
-        "Random Forest": (y_val_prob_rf, y_test_prob_rf),
-        "MLP": (None, y_test_prob_mlp),  # Val probs recomputed if needed
-    }
+    metrics_lr, tau_lr = eval_models.summarize_model(
+        "logreg",
+        y_val.astype(int),
+        y_val_prob_lr,
+        y_test.astype(int),
+        y_test_prob_lr
+    )
 
-    for name, (val_probs, test_probs) in models.items():
-        rows, tau = summarize_model(name, y_val, val_probs or y_val_prob_rf, y_test, test_probs)
-        print(f"{name}: τ* = {tau:.3f}")
+    metrics_rf, tau_rf = eval_models.summarize_model(
+        "rf",
+        y_val.astype(int),
+        y_val_prob_rf,
+        y_test.astype(int),
+        y_test_prob_rf
+    )
 
-    # 5. Run visuals (plots training curves, comparisons, calibration, etc.)
-    print("\nGenerating visualizations...")
+    metrics_mlp, tau_mlp = eval_models.summarize_model(
+        "mlp",
+        y_val.astype(int),
+        None,
+        y_test.astype(int),
+        y_test_prob_mlp
+    )
+
     visuals.run_all_visuals(
-        y_test,
+        y_test.astype(int),
         y_test_prob_lr,
         y_test_prob_rf,
         y_test_prob_mlp,
         mlp_train_losses,
-        mlp_val_losses,
+        mlp_val_losses
     )
-
-    
-    print("\nRunning Random Forest Ablations...")
-    run_rf_ablation("RF_baseline_all_features", [])
 
 if __name__ == "__main__":
     main()
