@@ -21,20 +21,8 @@ def main():
 
     cfg = load_config()
     df = build_features.load_data(cfg["data"]["path"])
-    X, y, train_df, val_df, test_df = build_features.prepare_features(df)
 
-    n = len(X)
-    a = int(n * 0.6)
-    b = int(n * 0.8)
-
-    X_train = X.iloc[:a]
-    y_train = y.iloc[:a]
-
-    X_val = X.iloc[a:b]
-    y_val = y.iloc[a:b]
-
-    X_test = X.iloc[b:]
-    y_test = y.iloc[b:]
+    X_train, y_train, X_val, y_val, X_test, y_test = build_features.prepare_features(df)
 
     lr_model, lr_scaler, lr_vt = train_logreg.train_logreg(X_train, y_train)
     _, y_val_prob_lr = train_logreg.predict_logreg(lr_model, lr_scaler, lr_vt, X_val)
